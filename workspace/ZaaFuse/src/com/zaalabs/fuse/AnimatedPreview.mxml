@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   initialize="onInitialize(event)">
+	
+	<s:layout>
+		<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+	</s:layout>
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayList;
+			import mx.events.FlexEvent;
+			
+			import com.zaalabs.fuse.FuseModel;
+			
+			private var _fileList:ArrayList;
+			
+			protected var _animationTimer:Timer;
+			protected var _currentIndex:int = 0;
+			
+
+			protected function onInitialize(event:FlexEvent):void
+			{
+				_animationTimer = new Timer(50);
+				_animationTimer.addEventListener(TimerEvent.TIMER, onTick, false, 0, true);
+			}
+			
+			protected function onTick(event:TimerEvent):void
+			{
+				animatedImage.source = null; // clear image data
+				
+				var bd:BitmapData = ImageLoader.instance.loadImage(File(_fileList.getItemAt(_currentIndex)));
+				if(FuseModel.keyColorFlag)
+					bd = FuseUtil.keyOutColor(bd, FuseModel.keyColor);
+				
+				animatedImage.source = bd;
+				
+				_currentIndex = ++_currentIndex % _fileList.length;
+			}	
+			
+			public function start():void
+			{
+				_currentIndex = 0;
+				if(_fileList.length > 0)
+				{
+					_animationTimer.start();
+				}
+			}
+
+			public function stop():void
+			{
+				_animationTimer.stop();
+			}
+			
+			public function get fileList():ArrayList
+			{
+				return _fileList;
+			}
+			
+			public function set fileList(value:ArrayList):void
+			{
+				_fileList = value;
+			}
+			
+			public function get delay():Number
+			{
+				return _animationTimer.delay;
+			}
+			
+			public function set delay(value:Number):void
+			{
+				_animationTimer.delay = value;
+			}
+
+
+			protected function group1_showHandler(event:FlexEvent):void
+			{
+				trace("show animate");
+			}
+
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<s:BitmapImage id="animatedImage" />
+	
+</s:Group>

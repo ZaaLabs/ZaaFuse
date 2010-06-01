@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   width="800" height="600" xmlns:fuse="com.zaalabs.fuse.*"
+					   initialize="onInitialize(event)" xmlns:ui="jac.ui.*">
+
+	<fx:Script>
+		<![CDATA[
+			import com.zaalabs.fuse.FuseModel;
+			import com.zaalabs.fuse.FuseUtil;
+			import com.zaalabs.fuse.ImageLoader;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.events.ColorPickerEvent;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.graphics.codec.PNGEncoder;
+			
+			import spark.events.IndexChangeEvent;
+			
+			[Bindable] protected var _imageList:ArrayList = new ArrayList();
+			
+			protected function onInitialize(event:FlexEvent):void
+			{
+				nativeApplication.addEventListener(InvokeEvent.INVOKE, onInvoke);
+			}
+			
+			protected function init():void
+			{
+				trace('init');
+			}
+			
+			protected function onAddClick(event:MouseEvent):void
+			{
+				var file:File = new File();
+				file.addEventListener(FileListEvent.SELECT_MULTIPLE, onSelectMultiple);
+				file.browseForOpenMultiple("Please select an image or three...", [ImageLoader.IMAGE_FILTER]);
+			}
+			
+			protected function onDeleteClick(event:MouseEvent):void
+			{
+				_imageList.removeItem(fileList.selectedItem);
+			}
+			
+			protected function onClearClick(event:MouseEvent):void
+			{
+				_imageList.removeAll();
+			}
+			
+			protected function onMoveUp(event:MouseEvent):void
+			{
+				var selected:* = fileList.selectedItem;
+				var replace:* = _imageList.getItemAt(fileList.selectedIndex-1);
+				_imageList.setItemAt(selected, fileList.selectedIndex-1);
+				_imageList.setItemAt(replace, fileList.selectedIndex);
+				fileList.selectedIndex--;
+			}
+			
+			protected function onMoveDown(event:MouseEvent):void
+			{
+				var selected:* = fileList.selectedItem;
+				var replace:* = _imageList.getItemAt(fileList.selectedIndex+1);
+				_imageList.setItemAt(selected, fileList.selectedIndex+1);
+				_imageList.setItemAt(replace, fileList.selectedIndex);
+				fileList.selectedIndex++;
+			}
+			
+			protected function onSelectMultiple(evt:FileListEvent):void
+			{
+				_imageList.addAll(new ArrayList(evt.files));
+				if(!allowDupesCB.selected) FuseUtil.removeDuplicates(_imageList, "name");
+			}
+
+			protected function onAllowDupeChange(event:Event):void
+			{
+				if(!allowDupesCB.selected) FuseUtil.removeDuplicates(_imageList, "name");
+			}
+
+
+			protected function onFuseClick(event:MouseEvent):void
+			{
+				processFiles();
+			}
+			
+			protected function processFiles():void
+			{
+				var cellWidth:int = 96;
+				var cellHeight:int = 96;
+				var sheetWidth:int = cellWidth * numColumns.value;
+				var sheetHeight:int = cellHeight * Math.ceil(_imageList.length / numColumns.value);
+				trace(sheetWidth + " x " + sheetHeight);
+				var bitmapOut:BitmapData = new BitmapData(sheetWidth,sheetHeight,true,0x00000000);
+				var sourceRect:Rectangle = new Rectangle(0, 0, bitmapOut.width, bitmapOut.height);
+				
+				for(var i:int=0; i<_imageList.length; i++)
+				{
+					var file:File = File(_imageList.getItemAt(i));
+					
+					var point:Point = new Point();
+					point.x = (i % numColumns.value) * cellWidth;
+					point.y = Math.floor(i / numColumns.value) * cellHeight;
+					
+					trace("Processing: "+file.name + " placing at: "+point);
+					
+					var bd:BitmapData = ImageLoader.instance.loadImage(file);
+					bd = FuseUtil.keyOutColor(bd, FuseModel.keyColor);
+					
+					bitmapOut.copyPixels
+					(
+						bd,
+						sourceRect,
+						point
+					);
+				}
+				
+				imageOut.source = bitmapOut;
+			}	
+
+
+			protected function onExportClick(event:MouseEvent):void
+			{
+				var docsDir:File = new File();
+				try
+				{
+					docsDir.browseForSave("Save As");
+					docsDir.addEventListener(Event.SELECT, saveData);
+				}
+				catch (error:Error)
+				{
+					trace("Failed:", error.message);
+				}
+			}
+			
+			protected function saveData(event:Event):void 
+			{
+				var newFile:File = event.target as File;
+				
+				var png:PNGEncoder = new PNGEncoder();
+				// TODO check exportBackgroundCB and fill background if neccessary
+				var ba:ByteArray = png.encode(BitmapData(imageOut.source));
+				
+				var stream:FileStream = new FileStream();
+				stream.open(newFile, FileMode.WRITE);
+				stream.writeBytes(ba);
+				stream.close();
+			}
+			
+			protected function onInvoke(event:InvokeEvent):void
+			{
+				if(event.currentDirectory != null && event.arguments.length > 0)
+				{
+					/* -- Load the file -- 
+					var directory:File = event.currentDirectory;
+					var file:File = directory.resolvePath(event.arguments[0]);
+					var fileStream:FileStream = new FileStream();
+					fileStream.open(file, FileMode.READ);
+					var object:Object = fileStream.readObject();
+					red.x = object.RED[0];
+					red.y = object.RED[1];
+					blue.x = object.BLUE[0];
+					blue.y = object.BLUE[1];
+					fileStream.close();
+					*/
+				} else
+				{
+					init();
+				}
+			}
+			
+			protected function onShowAnimate(event:FlexEvent):void
+			{
+				trace("Show Animate");
+				animateOut.start();
+			}
+			
+			protected function onHideAnimate(event:FlexEvent):void
+			{
+				trace("Hide Animate");
+				animateOut.stop();
+			}
+
+
+			protected function colorKeyPicker_changeHandler(event:ColorPickerEvent):void
+			{
+				FuseModel.keyColor = ColorPicker(event.target).selectedColor;
+			}
+
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+		
+		<!-- Native Menu -->
+		<!--<ui:Menu id="mainMenu">
+		    <ui:MenuItem label="_File">
+		        <ui:MenuItem label="_New" shortcut="Cmd+N" select="newDocument()"/>
+		        <ui:MenuItem label="_Open" shortcut="Cmd+O" select="openDocument()"/>
+		        <ui:MenuSeparator/>
+		        <ui:MenuItem label="_Close" shortcut="Cmd+W" select="closeDocument()" enabled="{document != null}" os="mac"/>
+		        <ui:MenuItem label="_Close" shortcut="Ctrl+F4" select="closeDocument()" enabled="{document != null}" os="win"/>
+		        <ui:MenuSeparator/>
+		        <ui:MenuItem label="_Save" shortcut="Cmd+S" select="saveDocument()" enabled="{document != null}"/>
+		        <ui:MenuItem label="Save _As" shortcut="Cmd+Shift+S" select="saveAsDocument()" enabled="{document != null}"/>
+		        <ui:MenuItem label="E_xit" shortcut="Cmd+Q" select="close()" os="mac"/>
+		        <ui:MenuItem label="E_xit" shortcut="Alt+F4" select="close()" os="win"/>
+		    </ui:MenuItem>
+		</ui:Menu>-->
+	</fx:Declarations>
+	
+	
+	
+	<s:Panel width="466" title="Images" top="10" bottom="220" left="10">
+		<s:layout>
+			<s:HorizontalLayout />
+		</s:layout>
+		<s:List id="fileList" dataProvider="{_imageList}" 
+				x="0" y="0" width="201" height="100%" labelField="name" 
+				dragMoveEnabled="true" dragEnabled="true" dropEnabled="true"/>
+		<fuse:InfoPanel selectedFile="{fileList.selectedItem}" width="100%" height="100%" />
+		<s:controlBarContent>
+			<s:Group>
+				<s:layout>
+					<s:HorizontalLayout gap="0" />
+				</s:layout>
+				<s:Button width="30" label="A" click="onAddClick(event)"/>
+				<s:Button width="30" label="D" click="onDeleteClick(event)"
+						  enabled="{fileList.selectedItem}"/>
+				<s:Button width="30" label="C" click="onClearClick(event)"/>
+				<s:Button width="30" label="U" click="onMoveUp(event)" 
+						  enabled="{fileList.selectedItem &amp;&amp; fileList.selectedIndex &gt; 0}"/>
+				<s:Button width="30" label="D" click="onMoveDown(event)"
+						  enabled="{fileList.selectedItem &amp;&amp; fileList.selectedIndex &lt; _imageList.length-1}"/>
+			</s:Group>
+			<s:CheckBox label="Duplicates" id="allowDupesCB" selected="false" change="onAllowDupeChange(event)"/>
+		</s:controlBarContent>
+	</s:Panel>
+	<mx:TabNavigator height="200" right="10" left="10" bottom="10">
+		<s:NavigatorContent label="Step 2 - Fuse" width="100%" height="100%">
+			<mx:Form left="10" top="10" bottom="10" width="300">
+				<mx:FormItem label="Number of Columns:">
+					<s:NumericStepper id="numColumns" value="4" maximum="100"/>
+				</mx:FormItem>
+				<mx:FormItem label="Cell Dimensions:">
+					<s:Group>
+						<s:layout>
+							<s:HorizontalLayout verticalAlign="middle" />
+						</s:layout>
+						<s:TextInput width="40" text="96"/>
+						<s:Label text="x" />
+						<s:TextInput width="40" text="96"/>
+					</s:Group>
+				</mx:FormItem>
+				<mx:FormItem label="Color Key:">
+					<mx:ColorPicker id="colorKeyPicker" selectedColor="{FuseModel.keyColor}"
+									change="colorKeyPicker_changeHandler(event)" />
+				</mx:FormItem>
+			</mx:Form>
+			<s:Button label="Fuse" click="onFuseClick(event)" />
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Step 3 - Preview" width="100%" height="100%">
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Step 4 - Export" width="100%" height="100%">
+			<s:Group>
+				<s:layout>
+					<s:VerticalLayout />
+				</s:layout>
+				<s:CheckBox id="exportBackgroundCB" label="Export Background" selected="false" />
+				<s:Button label="Export" click="onExportClick(event)" />
+			</s:Group>
+		</s:NavigatorContent>
+	</mx:TabNavigator>
+	<s:Panel right="10" left="484" top="10" bottom="220" title="Preview" 
+			 backgroundColor="{previewBGColorPicker.selectedColor}">
+		<mx:ViewStack id="previewStack">
+			<s:NavigatorContent label="Sheet">
+				<s:BitmapImage id="imageOut" />
+			</s:NavigatorContent>
+			<s:NavigatorContent label="Animation" show="onShowAnimate(event)" hide="onHideAnimate(event)">
+				<fuse:AnimatedPreview id="animateOut" fileList="{_imageList}" />
+			</s:NavigatorContent>
+			<s:NavigatorContent label="Game Mode">
+				<!-- Keyboard Interactive mode -->
+			</s:NavigatorContent>
+		</mx:ViewStack>
+		<s:controlBarContent>
+			<mx:ToggleButtonBar horizontalGap="5" dataProvider="{previewStack}" />
+			<mx:ColorPicker id="previewBGColorPicker" selectedColor="0x999999" />
+		</s:controlBarContent>
+	</s:Panel>
+</s:WindowedApplication>

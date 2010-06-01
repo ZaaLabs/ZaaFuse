@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="400" height="300" xmlns:fuse="com.zaalabs.fuse.*">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			
+			[Bindable] protected var _selectedFile:File;
+
+			[Bindable]
+			public function get selectedFile():File
+			{
+				return _selectedFile;
+			}
+
+			public function set selectedFile(value:File):void
+			{
+				_selectedFile = value;
+				
+				previewImage.source = null;
+				
+				if(!_selectedFile) return;
+				
+				previewImage.source = ImageLoader.instance.loadImage(_selectedFile);
+			}
+
+		]]>
+	</fx:Script>
+	
+	<mx:Form width="100%" height="100%">
+		<mx:FormHeading label="Info"/>
+		<mx:FormItem label="Name:">
+			<s:Label text="{_selectedFile.name}"/>
+		</mx:FormItem>
+		<mx:FormItem label="File Type:">
+			<s:Label text="{_selectedFile.extension}"/>
+		</mx:FormItem>
+		<mx:FormItem label="Dimensions:">
+			<s:Label text="{previewImage.width + ' x ' + previewImage.height}"/>
+		</mx:FormItem>
+		<mx:FormItem label="Preview:">
+			<s:Group width="98" height="98">
+				<s:BitmapImage id="previewImage" />
+			</s:Group>
+		</mx:FormItem>
+	</mx:Form>
+	
+</s:Group>
